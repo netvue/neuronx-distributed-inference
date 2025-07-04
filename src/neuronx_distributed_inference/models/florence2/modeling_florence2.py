@@ -631,8 +631,7 @@ class NeuronFlorence2ForConditionalGeneration(NeuronBaseForCausalLM):
     _model_cls = NeuronFlorence2VisionModel
 
     def __init__(self, config: Florence2InferenceConfig, **kwargs):
-        super().__init__(config)
-        self.config = config
+        super().__init__("dummy_model_path", config=config, **kwargs)
 
         self.vision_model = NeuronFlorence2VisionModel(config.vision_config)
         self.language_model = NeuronFlorence2LanguageModel(config.text_config)
@@ -947,7 +946,7 @@ class NeuronFlorence2ForConditionalGenerationApp(NeuronApplicationBase):
     _model_cls = NeuronFlorence2ForConditionalGeneration
 
     def __init__(self, model_path: str, config: InferenceConfig, **kwargs):
-        super().__init__(model_path, config=config, neuron_config=config.neuron_config)
+        super().__init__(model_path=model_path, config=config, neuron_config=config.neuron_config)
         self.model_wrapper = self.get_model_wrapper_cls()
 
         self.model = self.model_wrapper(
