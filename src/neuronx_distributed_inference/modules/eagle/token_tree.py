@@ -165,7 +165,7 @@ class TokenTree:
         try:
             # Initialize mask and visited set
             self.full_tree_attn_mask = torch.zeros(
-                self.node_nums, self.node_nums, dtype=torch.float32
+                self.node_nums, self.node_nums, dtype=self.config.neuron_config.torch_dtype
             )
             visited = set()
 

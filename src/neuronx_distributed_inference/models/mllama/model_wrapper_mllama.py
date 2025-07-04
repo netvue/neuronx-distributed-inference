@@ -38,8 +38,8 @@ class ModelWrapperMllama(ModelWrapper):
             # Get the count of sampling params currently supported.
             sampling_params_len = prepare_sampling_params(1).shape[1]
             sampling_params = torch.zeros(
-                (self.neuron_config.batch_size, sampling_params_len), dtype=torch.float32
-            )
+            (self.neuron_config.batch_size, sampling_params_len), dtype=self.neuron_config.torch_dtype
+        )
 
             # Default to 1x1 aspect ratios (because the aspect ratio values are used in computations)
             pixel_values, aspect_ratios, num_chunks, has_image = get_image_tensors(

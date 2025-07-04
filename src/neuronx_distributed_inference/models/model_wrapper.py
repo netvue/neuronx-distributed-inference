@@ -195,7 +195,7 @@ class ModelWrapper(torch.nn.Module):
 
             # Get the count of sampling params currently supported.
             sampling_params_len = prepare_sampling_params(1).shape[1]
-            sampling_params = torch.zeros((batch_size, sampling_params_len), dtype=torch.float32)
+            sampling_params = torch.zeros((batch_size, sampling_params_len), dtype=self.neuron_config.torch_dtype)
             if self.neuron_config.on_device_sampling_config:
                 if self.neuron_config.on_device_sampling_config.do_sample:
                     sampling_params[:, 0] = self.neuron_config.on_device_sampling_config.top_k
