@@ -583,7 +583,7 @@ class NeuronFlorence2VisionModel(NeuronEncoderBase):
         super().__init__(config)
         self.config = config
 
-        self.embeddings = NeuronFlorence2Embeddings(config, use_mask_token=self.config.use_mask_token)
+        self.embeddings = NeuronFlorence2Embeddings(config)
         self.encoder = NeuronFlorence2Encoder(config)
 
         self.layernorm = nn.LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
