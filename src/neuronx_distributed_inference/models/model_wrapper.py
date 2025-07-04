@@ -2,6 +2,7 @@ import logging
 import os
 import warnings
 from functools import partial
+from typing import List, Tuple
 
 import torch
 import torch.nn.functional as F

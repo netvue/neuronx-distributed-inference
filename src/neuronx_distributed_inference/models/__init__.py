@@ -1,0 +1,1 @@
+from .florence2.modeling_florence2 import NeuronFlorence2VisionModel as NeuronFlorence2ForImageEncoding
