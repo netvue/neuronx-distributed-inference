@@ -51,15 +51,15 @@ class NeuronFlorence2Embeddings(nn.Module):
     def __init__(self, config: Florence2VisionInferenceConfig, use_mask_token: bool = False) -> None:
         super().__init__()
 
-        self.cls_token = nn.Parameter(torch.randn(1, 1, config.hidden_size))
+        self.cls_token = nn.Parameter(torch.randn(1, 1, config.window_size))
         logger.info(f"use_mask_token {use_mask_token}")
         self.mask_token = (
-            nn.Parameter(torch.zeros(1, 1, config.hidden_size)) if use_mask_token else None
+            nn.Parameter(torch.zeros(1, 1, config.window_size)) if use_mask_token else None
         )
         logger.info(f"self.mask_token {self.mask_token}")
         self.patch_embeddings = NeuronFlorence2PatchEmbeddings(config)
         num_patches = self.patch_embeddings.num_patches
-        self.position_embeddings = nn.Parameter(torch.randn(1, num_patches + 1, config.hidden_size))
+        self.position_embeddings = nn.Parameter(torch.randn(1, num_patches + 1, config.window_size))
         self.dropout = nn.Dropout(config.hidden_dropout_prob)
         self.patch_size = config.patch_size
         self.config = config
@@ -143,14 +143,14 @@ class NeuronFlorence2Embeddings(nn.Module):
 class NeuronFlorence2PatchEmbeddings(nn.Module):
     """
     This class turns `pixel_values` of shape `(batch_size, num_channels, height, width)` into the initial
-    `hidden_states` (patch embeddings) of shape `(batch_size, seq_length, hidden_size)` to be consumed by a
+    `hidden_states` (patch embeddings) of shape `(batch_size, seq_length, window_size)` to be consumed by a
     Transformer.
     """
 
     def __init__(self, config: Florence2InferenceConfig):
         super().__init__()
         image_size, patch_size = config.image_size, config.patch_size
-        num_channels, hidden_size = config.num_channels, config.hidden_size
+        num_channels, window_size = config.num_channels, config.window_size
 
         image_size = (
             image_size
@@ -169,11 +169,11 @@ class NeuronFlorence2PatchEmbeddings(nn.Module):
         self.num_patches = num_patches
 
         # self.projection = nn.Conv2d(
-        #     num_channels, hidden_size, kernel_size=patch_size, stride=patch_size
+        #     num_channels, window_size, kernel_size=patch_size, stride=patch_size
         # )
         self.projection = OutputChannelParallelConv2d( # FIXME: in checkpoint bias is not sharded: Incorrect tensor shape at checkpoint keyprojection.bias: received 768, expected 24.
             in_channels=num_channels,
-            out_channels=hidden_size,
+            out_channels=window_size,
             kernel_size=patch_size,
             stride=patch_size,
             bias=True # Assuming bias is always true for Florence2
@@ -207,10 +207,10 @@ class NeuronFlorence2Attention(NeuronAttentionBase):
         super().__init__()
         self.config = config
         self.neuron_config = config.neuron_config
-        self.hidden_size = config.hidden_size
+        self.window_size = config.window_size
         self.num_attention_heads = config.num_attention_heads
         self.num_key_value_heads = getattr(config, "num_key_value_heads", self.num_attention_heads)
-        self.head_dim = self.hidden_size // self.num_attention_heads
+        self.head_dim = self.window_size // self.num_attention_heads
         self.tp_degree = config.neuron_config.tp_degree
         self.torch_dtype = config.neuron_config.torch_dtype
         self.fused_qkv = False
@@ -222,29 +222,29 @@ class NeuronFlorence2Attention(NeuronAttentionBase):
         self.o_proj_layer_name = "o_proj"
 
         self.q_proj = ColumnParallelLinear(
-            self.hidden_size,
-            self.hidden_size,
+            self.window_size,
+            self.window_size,
             bias=True,
             gather_output=False,
             dtype=self.torch_dtype,
         )
         self.k_proj = ColumnParallelLinear(
-            self.hidden_size,
-            self.hidden_size,
+            self.window_size,
+            self.window_size,
             bias=True,
             gather_output=False,
             dtype=self.torch_dtype,
         )
         self.v_proj = ColumnParallelLinear(
-            self.hidden_size,
-            self.hidden_size,
+            self.window_size,
+            self.window_size,
             bias=True,
             gather_output=False,
             dtype=self.torch_dtype,
         )
         self.o_proj = RowParallelLinear(
-            self.hidden_size,
-            self.hidden_size,
+            self.window_size,
+            self.window_size,
             bias=True,
             input_is_parallel=True,
             dtype=self.torch_dtype,
@@ -256,9 +256,9 @@ class NeuronFlorence2Attention(NeuronAttentionBase):
         if self.attention_type == "spatial":
             return super().forward(hidden_states)
         elif self.attention_type == "channel":
-            batch_size, seq_len, hidden_size = hidden_states.shape
+            batch_size, seq_len, window_size = hidden_states.shape
             hidden_states = hidden_states.permute(0, 2, 1).contiguous()
-            hidden_states = hidden_states.view(batch_size, hidden_size, int(seq_len**0.5), int(seq_len**0.5))
+            hidden_states = hidden_states.view(batch_size, window_size, int(seq_len**0.5), int(seq_len**0.5))
 
             batch_size, num_channels, height, width = hidden_states.shape
             num_groups = num_channels // self.channel_group_size
@@ -298,7 +298,7 @@ class NeuronFlorence2Intermediate(nn.Module):
     def __init__(self, config: Florence2InferenceConfig) -> None:
         super().__init__()
         self.dense = ColumnParallelLinear(
-            config.hidden_size,
+            config.window_size,
             config.intermediate_size,
             bias=True,
             gather_output=False,
@@ -323,7 +323,7 @@ class NeuronFlorence2Output(nn.Module):
         super().__init__()
         self.dense = RowParallelLinear(
             config.intermediate_size,
-            config.hidden_size,
+            config.window_size,
             bias=True,
             input_is_parallel=True,
             dtype=config.neuron_config.torch_dtype,
@@ -351,8 +351,8 @@ class NeuronFlorence2Layer(nn.Module):
         self.attention = NeuronFlorence2Attention(config, attention_type)
         self.intermediate = NeuronFlorence2Intermediate(config)
         self.output = NeuronFlorence2Output(config)
-        self.layernorm_before = nn.LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
-        self.layernorm_after = nn.LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
+        self.layernorm_before = nn.LayerNorm(config.window_size, eps=config.layer_norm_eps)
+        self.layernorm_after = nn.LayerNorm(config.window_size, eps=config.layer_norm_eps)
 
     def forward(
         self,
@@ -404,8 +404,8 @@ class NeuronFlorence2Pooler(nn.Module):
     def __init__(self, config: Florence2VisionInferenceConfig):
         super().__init__()
         self.dense = ColumnParallelLinear(
-            config.hidden_size,
-            config.hidden_size,
+            config.window_size,
+            config.window_size,
             gather_output=True,
             dtype=config.neuron_config.torch_dtype,
         )
@@ -424,7 +424,7 @@ class NeuronFlorence2LanguageModel(NeuronBaseModel):
     def setup_attr_for_model(self, config: Florence2LanguageInferenceConfig):
         self.on_device_sampling = config.neuron_config.on_device_sampling_config is not None
         self.tp_degree = config.neuron_config.tp_degree
-        self.hidden_size = config.d_model
+        self.window_size = config.d_model
         self.num_attention_heads = config.encoder_attention_heads
         self.num_key_value_heads = config.encoder_attention_heads
         self.max_batch_size = config.neuron_config.max_batch_size
@@ -586,7 +586,7 @@ class NeuronFlorence2VisionModel(NeuronEncoderBase):
         self.embeddings = NeuronFlorence2Embeddings(config)
         self.encoder = NeuronFlorence2Encoder(config)
 
-        self.layernorm = nn.LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
+        self.layernorm = nn.LayerNorm(config.window_size, eps=config.layer_norm_eps)
         self.pooler = NeuronFlorence2Pooler(config) if self.config.add_pooling_layer else None
 
     def get_input_embeddings(self) -> NeuronFlorence2PatchEmbeddings:
@@ -728,7 +728,7 @@ class NeuronFlorence2ForConditionalGeneration(NeuronBaseForCausalLM):
                 inputs_embeds = self.language_model.get_input_embeddings()(input_ids)
             # 2. Merge text and images
             if pixel_values is not None:
-                # (batch_size, num_image_tokens, hidden_size)
+                # (batch_size, num_image_tokens, window_size)
                 image_features = self._encode_image(pixel_values)
                 inputs_embeds, attention_mask = self._merge_input_ids_with_image_features(image_features, inputs_embeds)
 
@@ -1015,14 +1015,14 @@ class NeuronFlorence2ForConditionalGenerationApp(NeuronApplicationBase):
                     # Handle QKV split for vision attention
                     if "query.weight" in new_key:
                         qkv_weight = state_dict[key]
-                        hidden_size = qkv_weight.shape[0] // 3
-                        q_weight, k_weight, v_weight = torch.split(qkv_weight, hidden_size)
+                        window_size = qkv_weight.shape[0] // 3
+                        q_weight, k_weight, v_weight = torch.split(qkv_weight, window_size)
                         neuron_state_dict[new_key.replace("query", "q_proj")] = q_weight
                         neuron_state_dict[new_key.replace("query", "k_proj")] = k_weight
                         neuron_state_dict[new_key.replace("query", "v_proj")] = v_weight
                         if key.replace(".weight", ".bias") in state_dict:
                             qkv_bias = state_dict[key.replace(".weight", ".bias")]
-                            q_bias, k_bias, v_bias = torch.split(qkv_bias, hidden_size)
+                            q_bias, k_bias, v_bias = torch.split(qkv_bias, window_size)
                             neuron_state_dict[new_key.replace("query.weight", "q_proj.bias")] = q_bias
                             neuron_state_dict[new_key.replace("query.weight", "k_proj.bias")] = k_bias
                             neuron_state_dict[new_key.replace("query.weight", "v_proj.bias")] = v_bias
