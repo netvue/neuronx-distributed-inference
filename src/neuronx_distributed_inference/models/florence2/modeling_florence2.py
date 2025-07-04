@@ -630,8 +630,8 @@ class NeuronFlorence2VisionModel(NeuronEncoderBase):
 class NeuronFlorence2ForConditionalGeneration(NeuronBaseForCausalLM):
     _model_cls = NeuronFlorence2VisionModel
 
-    def __init__(self, config: Florence2InferenceConfig):
-        super().__init__(config)
+    def __init__(self, config: Florence2InferenceConfig, **kwargs):
+        super().__init__(config, **kwargs)
         self.config = config
 
         self.vision_model = NeuronFlorence2VisionModel(config.vision_config)
