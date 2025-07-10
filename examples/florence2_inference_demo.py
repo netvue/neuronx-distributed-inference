@@ -44,8 +44,7 @@ def run_inference(model_path, image_path, prompt):
     outputs = neuron_model.generate(
         input_ids=input_ids,
         pixel_values=pixel_values,
-        max_new_tokens=1024,
-        early_stopping=True
+        max_new_tokens=1024
     )
 
     print("Decoding outputs...")
