@@ -711,7 +711,7 @@ class NeuronFlorence2Model(NeuronBaseModel):
         attention_mask: Optional[torch.Tensor] = None,
         position_ids: Optional[torch.LongTensor] = None,
         seq_ids: Optional[torch.LongTensor] = None,
-        pixel_values: Optional[torch.FloatTensor] = None, # This is the 5th positional argument
+        pixel_values: Optional[torch.FloatTensor] = None,  # This is the 5th positional argument
         # The rest are kwargs or optional positional args that might be passed by ModelWrapper
         past_key_values: Optional[Tuple[torch.Tensor]] = None,
         inputs_embeds: Optional[torch.FloatTensor] = None,
@@ -721,10 +721,19 @@ class NeuronFlorence2Model(NeuronBaseModel):
         output_hidden_states: Optional[bool] = None,
         medusa_args=None,
         return_dict: Optional[bool] = None,
-        llava_args: Optional[List] = [] # llava_args remains, but pixel_values is not extracted from it
+        llava_args: Optional[List] = []  # llava_args remains, but pixel_values is not extracted from it
     ):
+        # --- DEBUGGING PRINTS START ---
+        print(f"DEBUG: Inside NeuronFlorence2Model.forward")
+        print(f"DEBUG: pixel_values type: {type(pixel_values)}")
+        if isinstance(pixel_values, torch.Tensor):
+            print(f"DEBUG: pixel_values shape: {pixel_values.shape}")
+        else:
+            print(f"DEBUG: pixel_values is not a tensor.")
+        # --- DEBUGGING PRINTS END ---
+
         encoder_hidden_states = self.vision_encoder(pixel_values)
-        
+
         hidden_states = self.embed_tokens(input_ids)
 
         # Extract past_key_values from kwargs if present
@@ -750,7 +759,7 @@ class NeuronFlorence2Model(NeuronBaseModel):
                 **kwargs,
             )
             presents.append(past_key_value)
-        
+
         logits = self.lm_head(hidden_states)
         return logits, presents
 
@@ -758,7 +767,7 @@ class NeuronFlorence2Model(NeuronBaseModel):
         # These are dummy inputs for tracing
         batch_size = self.neuron_config.batch_size
         # Use max_context_length for context encoding model tracing
-        seq_len = self.neuron_config.max_context_length 
+        seq_len = self.neuron_config.max_context_length
 
         input_ids = torch.randint(0, self.vocab_size, (batch_size, seq_len), dtype=torch.long)
         attention_mask = torch.ones((batch_size, seq_len), dtype=torch.long)
@@ -768,13 +777,19 @@ class NeuronFlorence2Model(NeuronBaseModel):
         # Dummy pixel_values (assuming 3 channels, 768x768 image as per Florence-2)
         pixel_values = torch.randn(batch_size, 3, 768, 768, dtype=self.torch_dtype)
 
+        # --- DEBUGGING PRINTS START ---
+        print(f"DEBUG: Inside NeuronFlorence2Model.input_generator")
+        print(f"DEBUG: pixel_values type (in input_generator): {type(pixel_values)}")
+        print(f"DEBUG: pixel_values shape (in input_generator): {pixel_values.shape}")
+        # --- DEBUGGING PRINTS END ---
+
         # The forward method expects: input_ids, attention_mask, position_ids, seq_ids, pixel_values, *args, **kwargs
         return (
             input_ids,
             attention_mask,
             position_ids,
             seq_ids,
-            pixel_values, # This is the 5th positional argument
+            pixel_values,  # This is the 5th positional argument
             # Remaining arguments for forward (past_key_values, inputs_embeds, etc.) can be passed as kwargs
         )
 
