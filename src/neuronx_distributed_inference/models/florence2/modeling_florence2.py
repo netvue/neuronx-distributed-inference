@@ -706,13 +706,23 @@ class NeuronFlorence2Model(NeuronBaseModel):
 
     def forward(
         self,
-        input_ids: torch.LongTensor,
-        pixel_values: torch.FloatTensor,
+        input_ids: torch.LongTensor = None,
+        seq_ids: Optional[torch.LongTensor] = None,
         attention_mask: Optional[torch.Tensor] = None,
         position_ids: Optional[torch.LongTensor] = None,
         past_key_values: Optional[Tuple[torch.Tensor]] = None,
-        **kwargs,
+        inputs_embeds: Optional[torch.FloatTensor] = None,
+        labels: Optional[torch.LongTensor] = None,
+        use_cache: Optional[bool] = None,
+        output_attentions: Optional[bool] = None,
+        output_hidden_states: Optional[bool] = None,
+        medusa_args=None,
+        return_dict: Optional[bool] = None,
+        llava_args: Optional[List] = []
     ):
+        # Extract pixel_values from llava_args
+        pixel_values = llava_args[0] if llava_args else None
+
         encoder_hidden_states = self.vision_encoder(pixel_values)
         
         hidden_states = self.embed_tokens(input_ids)
