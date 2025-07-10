@@ -752,8 +752,6 @@ class NeuronFlorence2Model(NeuronBaseModel):
 
         hidden_states = self.embed_tokens(input_ids)
 
-        # Extract past_key_values from kwargs if present
-        past_key_values = kwargs.pop("past_key_values", None)
 
         past_key_values_length = past_key_values[0][0].shape[2] if past_key_values is not None else 0
         bsz, seq_len = input_ids.shape[:2]
