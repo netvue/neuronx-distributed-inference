@@ -68,7 +68,7 @@ class Florence2InferenceConfig(InferenceConfig):
             "pad_token_id": hf_config.pad_token_id,
             "vocab_size": hf_config.text_config.vocab_size,
             "max_position_embeddings": hf_config.text_config.max_position_embeddings,
-            "rms_norm_eps": hf_config.text_config.layer_norm_eps,
+            "rms_norm_eps": 1e-5,
             "hidden_act": hf_config.text_config.activation_function,
             "intermediate_size": hf_config.text_config.decoder_ffn_dim,
             "vision_config": hf_config.vision_config.to_dict(),
