@@ -500,14 +500,15 @@ class NeuronFlorence2VisionEncoder(nn.Module):
 
         if x.ndim != 4:
             raise ValueError(f"Expected 4D input tensor for vision encoder, but got shape {x.shape}")
+
+        # Ensure input dtype matches model weights before conv
+        if x.dtype != next(self.parameters()).dtype:
+            x = x.to(dtype=next(self.parameters()).dtype)
+
         input_size = (x.size(2), x.size(3))
         for conv, block in zip(self.convs, self.blocks):
             x, input_size = conv(x, input_size)
             x, input_size = block(x, input_size)
-
-        # Ensure input dtype matches model weights
-        if x.dtype != next(self.parameters()).dtype:
-            x = x.to(dtype=next(self.parameters()).dtype)
 
         x = self.avgpool(x.transpose(1, 2))
         x = torch.flatten(x, 1)
