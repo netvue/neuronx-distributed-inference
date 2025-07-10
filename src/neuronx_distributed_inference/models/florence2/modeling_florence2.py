@@ -836,10 +836,18 @@ class NeuronFlorence2ForCausalLM(NeuronBaseForCausalLM):
 
         # Greedy decoding loop
         for _ in range(max_new_tokens):
+            # Calculate position_ids for the current step
+            past_key_values_length = past_key_values[0][0].shape[2] if past_key_values is not None else 0
+            bsz, seq_len = input_ids.shape[:2]
+            position_ids = torch.arange(
+                past_key_values_length, past_key_values_length + seq_len, dtype=torch.long, device=input_ids.device
+            ).unsqueeze(0)
+
             # Forward pass
             logits, past_key_values = self(
                 input_ids=input_ids,
                 attention_mask=attention_mask,
+                position_ids=position_ids,
                 past_key_values=past_key_values,
                 llava_args=[pixel_values],
                 **kwargs,
