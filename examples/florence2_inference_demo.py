@@ -45,8 +45,6 @@ def run_inference(model_path, image_path, prompt):
         input_ids=input_ids,
         pixel_values=pixel_values,
         max_new_tokens=1024,
-        num_beams=3,
-        do_sample=False,
         early_stopping=True
     )
 
