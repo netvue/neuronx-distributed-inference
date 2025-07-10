@@ -57,7 +57,7 @@ class Florence2InferenceConfig(InferenceConfig):
     @classmethod
     def from_pretrained(cls, model_name_or_path, **kwargs):
         from transformers import AutoConfig
-        hf_config = AutoConfig.from_pretrained(model_name_or_path, **kwargs)
+        hf_config = AutoConfig.from_pretrained(model_name_or_path, trust_remote_code=True, **kwargs)
         
         # Extract relevant parameters from HuggingFace config
         config_dict = {
@@ -740,17 +740,31 @@ class NeuronFlorence2ForCausalLM(NeuronBaseForCausalLM):
     def convert_hf_to_neuron_state_dict(state_dict: dict, config: InferenceConfig) -> dict:
         neuron_state_dict = {}
         for name, tensor in state_dict.items():
-            # Vision Encoder
-            if name.startswith("model.encoder."):
-                new_name = name.replace("model.encoder.", "vision_encoder.")
-                if "blocks." in new_name:
-                    # Handle Mlp layers within spatial_block and channel_block
-                    if "ffn.fn.net." in new_name:
-                        new_name = new_name.replace("ffn.fn.net.", "ffn.fn.")
+            # Vision Encoder (DaViT)
+            if name.startswith("vision_tower."):
+                new_name = name.replace("vision_tower.", "vision_encoder.")
+                # Handle convs (ConvEmbed)
+                if "convs." in new_name:
+                    # convs.X.proj.weight/bias -> vision_encoder.convs.X.proj.weight/bias
+                    # convs.X.norm.weight/bias -> vision_encoder.convs.X.norm.weight/bias
+                    pass # No further renaming needed for convs
+                # Handle blocks (SpatialBlock and ChannelBlock)
+                elif "blocks." in new_name:
+                    # Remove .fn. from PreNorm (e.g., .window_attn.fn.qkv -> .window_attn.qkv)
+                    new_name = new_name.replace(".fn.", ".")
+                    # Handle Mlp layers within spatial_block and channel_block (e.g., .ffn.net.fc1 -> .ffn.fc1)
+                    if "ffn.net." in new_name:
+                        new_name = new_name.replace("ffn.net.", "ffn.")
+                # Handle norms and head
+                elif new_name.startswith("vision_encoder.norms."):
+                    pass # No change
+                elif new_name.startswith("vision_encoder.head."):
+                    pass # No change
                 neuron_state_dict[new_name] = tensor
+
             # Language Model (Decoder)
-            elif name.startswith("model.decoder."):
-                new_name = name.replace("model.decoder.", "")
+            elif name.startswith("language_model.model.decoder."):
+                new_name = name.replace("language_model.model.decoder.", "")
                 if new_name.startswith("embed_tokens."):
                     neuron_state_dict["embed_tokens." + new_name.split("embed_tokens.")[1]] = tensor
                 elif new_name.startswith("embed_positions."):
@@ -773,13 +787,24 @@ class NeuronFlorence2ForCausalLM(NeuronBaseForCausalLM):
                         new_name = new_name.replace("encoder_attn.", "cross_attn.")
                     neuron_state_dict[new_name] = tensor
                 else:
-                    print(f"Unhandled model.decoder key: {name}")
+                    print(f"Unhandled language_model.model.decoder key: {name}")
+
             # LM Head
-            elif name.startswith("lm_head."):
-                neuron_state_dict[name] = tensor
-            # Shared Embeddings (if not already handled by model.decoder.embed_tokens)
-            elif name.startswith("model.shared."):
-                neuron_state_dict[name.replace("model.shared.", "embed_tokens.")] = tensor
+            elif name.startswith("language_model.lm_head."):
+                neuron_state_dict[name.replace("language_model.", "")] = tensor
+
+            # Shared Embeddings (from language_model.model.shared)
+            elif name.startswith("language_model.model.shared."):
+                neuron_state_dict[name.replace("language_model.model.shared.", "embed_tokens.")] = tensor
+
+            # Explicitly ignore keys that are not mapped to our NeuronX model
+            elif name.startswith("image_projection.") or 
+                 name.startswith("image_proj_norm.") or 
+                 name.startswith("image_pos_embed.") or 
+                 name.startswith("visual_temporal_embed.") or 
+                 name == "language_model.final_logits_bias" or 
+                 name.startswith("language_model.model.encoder."): # Explicitly ignore the HF text encoder
+                print(f"Ignoring key: {name}")
             else:
                 print(f"Unhandled key: {name}")
         return neuron_state_dict
@@ -787,3 +812,75 @@ class NeuronFlorence2ForCausalLM(NeuronBaseForCausalLM):
     @classmethod
     def get_config_cls(cls):
         return Florence2InferenceConfig
+
+    def generate(
+        self,
+        input_ids: torch.LongTensor,
+        pixel_values: torch.FloatTensor,
+        max_new_tokens: int,
+        attention_mask: Optional[torch.Tensor] = None,
+        **kwargs,
+    ):
+        # Initialize past_key_values
+        past_key_values = None
+
+        # Greedy decoding loop
+        for _ in range(max_new_tokens):
+            # Forward pass
+            logits, past_key_values = self.model(
+                input_ids=input_ids,
+                pixel_values=pixel_values,
+                attention_mask=attention_mask,
+                past_key_values=past_key_values,
+                **kwargs,
+            )
+
+            # Get the next token (greedy approach)
+            next_token_logits = logits[:, -1, :]
+            next_token = torch.argmax(next_token_logits, dim=-1)
+
+            # Append the next token to input_ids
+            input_ids = torch.cat([input_ids, next_token.unsqueeze(-1)], dim=-1)
+
+            # Update attention_mask for the next iteration (if needed)
+            if attention_mask is not None:
+                attention_mask = torch.cat(
+                    [attention_mask, torch.ones_like(next_token.unsqueeze(-1))], dim=-1
+                )
+        return input_ids
+
+    def generate(
+        self,
+        input_ids: torch.LongTensor,
+        pixel_values: torch.FloatTensor,
+        max_new_tokens: int,
+        attention_mask: Optional[torch.Tensor] = None,
+        **kwargs,
+    ):
+        # Initialize past_key_values
+        past_key_values = None
+
+        # Greedy decoding loop
+        for _ in range(max_new_tokens):
+            # Forward pass
+            logits, past_key_values = self.model(
+                input_ids=input_ids,
+                pixel_values=pixel_values,
+                attention_mask=attention_mask,
+                past_key_values=past_key_values,
+                **kwargs,
+            )
+
+            # Get the next token (greedy approach)
+            next_token_logits = logits[:, -1, :]
+            next_token = torch.argmax(next_token_logits, dim=-1)
+
+            # Append the next token to input_ids
+            input_ids = torch.cat([input_ids, next_token.unsqueeze(-1)], dim=-1)
+
+            # Update attention_mask for the next iteration (if needed)
+            if attention_mask is not None:
+                attention_mask = torch.cat(
+                    [attention_mask, torch.ones_like(next_token.unsqueeze(-1))], dim=-1
+                )
+        return input_ids
