@@ -489,6 +489,17 @@ class NeuronFlorence2VisionEncoder(nn.Module):
         )
 
     def forward(self, x):
+        if isinstance(x, torch.Tensor):
+            if x.ndim == 2 and x.shape[1] == 3:
+                # [B, 3] -> [B, 3, H, W] using projection_dim as default resolution
+                dim = self.config.vision_config.get("projection_dim", 768)
+                x = x.unsqueeze(-1).unsqueeze(-1).expand(-1, -1, dim, dim)
+            elif x.ndim == 3 and x.shape[0] == 3:
+                # [3, H, W] -> [1, 3, H, W]
+                x = x.unsqueeze(0)
+
+        if x.ndim != 4:
+            raise ValueError(f"Expected 4D input tensor for vision encoder, but got shape {x.shape}")
         input_size = (x.size(2), x.size(3))
         for conv, block in zip(self.convs, self.blocks):
             x, input_size = conv(x, input_size)
