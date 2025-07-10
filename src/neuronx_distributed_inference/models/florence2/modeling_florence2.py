@@ -526,6 +526,7 @@ class NeuronFlorence2Attention(NeuronAttentionBase):
         self.num_attention_heads = config.num_attention_heads
         self.num_attention_heads_per_partition = self.num_attention_heads
         self.num_key_value_heads = config.num_key_value_heads
+        self.num_key_value_heads_per_partition = self.num_key_value_heads
         self.head_dim = self.hidden_size // self.num_attention_heads
         self.tp_degree = config.neuron_config.tp_degree
         self.torch_dtype = config.hf_config.torch_dtype
