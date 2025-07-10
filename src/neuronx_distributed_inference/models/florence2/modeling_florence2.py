@@ -707,6 +707,7 @@ class NeuronFlorence2Model(NeuronBaseModel):
     def forward(
         self,
         input_ids: torch.LongTensor = None,
+        pixel_values: Optional[torch.FloatTensor] = None, # pixel_values as a direct argument
         seq_ids: Optional[torch.LongTensor] = None,
         attention_mask: Optional[torch.Tensor] = None,
         position_ids: Optional[torch.LongTensor] = None,
@@ -718,11 +719,8 @@ class NeuronFlorence2Model(NeuronBaseModel):
         output_hidden_states: Optional[bool] = None,
         medusa_args=None,
         return_dict: Optional[bool] = None,
-        llava_args: Optional[List] = []
+        llava_args: Optional[List] = [] # llava_args remains, but pixel_values is not extracted from it
     ):
-        # Extract pixel_values from llava_args
-        pixel_values = llava_args[0] if llava_args else None
-
         encoder_hidden_states = self.vision_encoder(pixel_values)
         
         hidden_states = self.embed_tokens(input_ids)
@@ -765,9 +763,10 @@ class NeuronFlorence2Model(NeuronBaseModel):
         # Dummy pixel_values (assuming 3 channels, 768x768 image as per Florence-2)
         pixel_values = torch.randn(batch_size, 3, 768, 768)
 
-        # The forward method expects: input_ids, seq_ids, attention_mask, position_ids, past_key_values, inputs_embeds, labels, use_cache, output_attentions, output_hidden_states, medusa_args, return_dict, llava_args
+        # The forward method expects: input_ids, pixel_values, seq_ids, attention_mask, position_ids, past_key_values, inputs_embeds, labels, use_cache, output_attentions, output_hidden_states, medusa_args, return_dict, llava_args
         return (
             input_ids,
+            pixel_values, # Pass pixel_values directly
             seq_ids,
             attention_mask,
             position_ids,
@@ -779,7 +778,7 @@ class NeuronFlorence2Model(NeuronBaseModel):
             None, # output_hidden_states
             None, # medusa_args
             None, # return_dict
-            [pixel_values] # llava_args
+            [] # llava_args (empty list)
         )
 
 
