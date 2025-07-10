@@ -512,7 +512,8 @@ class NeuronFlorence2Attention(NeuronAttentionBase):
         self.head_dim = self.hidden_size // self.num_attention_heads
         self.tp_degree = config.neuron_config.tp_degree
         self.torch_dtype = config.hf_config.torch_dtype
-        self.fused_qkv = False # Add this line # Add this line
+        self.fused_qkv = False
+        self.clip_qkv = False # Add this line # Add this line # Add this line
 
         self.q_proj = ColumnParallelLinear(
             self.hidden_size,
