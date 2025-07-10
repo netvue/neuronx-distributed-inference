@@ -751,6 +751,37 @@ class NeuronFlorence2Model(NeuronBaseModel):
         logits = self.lm_head(hidden_states)
         return logits, presents
 
+    def input_generator(self):
+        # These are dummy inputs for tracing
+        batch_size = self.neuron_config.batch_size
+        # Use max_context_length for context encoding model tracing
+        seq_len = self.neuron_config.max_context_length 
+
+        input_ids = torch.randint(0, self.vocab_size, (batch_size, seq_len), dtype=torch.long)
+        attention_mask = torch.ones((batch_size, seq_len), dtype=torch.long)
+        position_ids = torch.arange(0, seq_len, dtype=torch.long).unsqueeze(0).expand(batch_size, -1)
+        seq_ids = torch.arange(0, batch_size, dtype=torch.long)
+
+        # Dummy pixel_values (assuming 3 channels, 768x768 image as per Florence-2)
+        pixel_values = torch.randn(batch_size, 3, 768, 768)
+
+        # The forward method expects: input_ids, seq_ids, attention_mask, position_ids, past_key_values, inputs_embeds, labels, use_cache, output_attentions, output_hidden_states, medusa_args, return_dict, llava_args
+        return (
+            input_ids,
+            seq_ids,
+            attention_mask,
+            position_ids,
+            None, # past_key_values
+            None, # inputs_embeds
+            None, # labels
+            None, # use_cache
+            None, # output_attentions
+            None, # output_hidden_states
+            None, # medusa_args
+            None, # return_dict
+            [pixel_values] # llava_args
+        )
+
 
 class NeuronFlorence2ForCausalLM(NeuronBaseForCausalLM):
     _model_cls = NeuronFlorence2Model
