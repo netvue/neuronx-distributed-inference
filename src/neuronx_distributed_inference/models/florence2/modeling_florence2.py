@@ -59,8 +59,17 @@ class Florence2InferenceConfig(InferenceConfig):
         from transformers import AutoConfig
         hf_config = AutoConfig.from_pretrained(model_name_or_path, trust_remote_code=True, **kwargs)
         
+        # Explicitly set output_attentions, output_hidden_states, use_return_dict
+        # These are usually present in PretrainedConfig, but if not, set defaults
+        if not hasattr(hf_config, 'output_attentions'):
+            hf_config.output_attentions = False
+        if not hasattr(hf_config, 'output_hidden_states'):
+            hf_config.output_hidden_states = False
+        if not hasattr(hf_config, 'use_return_dict'):
+            hf_config.use_return_dict = True # Default for HF models
+
         # Extract relevant parameters from HuggingFace config
-        config_dict = {
+        config_params = {
             "hidden_size": hf_config.text_config.d_model,
             "num_attention_heads": hf_config.text_config.decoder_attention_heads,
             "num_hidden_layers": hf_config.text_config.decoder_layers,
@@ -73,9 +82,10 @@ class Florence2InferenceConfig(InferenceConfig):
             "intermediate_size": hf_config.text_config.decoder_ffn_dim,
             "vision_config": hf_config.vision_config.to_dict(),
         }
-        
+
         # Create an instance of Florence2InferenceConfig
-        instance = cls(neuron_config=cls.get_neuron_config_cls()(), **config_dict)
+        # Pass hf_config as the first argument, and other params as kwargs
+        instance = cls(hf_config=hf_config, neuron_config=cls.get_neuron_config_cls()(), **config_params)
         instance.add_derived_config()
         return instance
 
