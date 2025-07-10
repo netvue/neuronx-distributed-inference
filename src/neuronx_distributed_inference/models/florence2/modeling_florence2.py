@@ -601,19 +601,19 @@ class NeuronFlorence2Attention(NeuronAttentionBase):
             key_states = torch.cat([past_key_value[0], key_states], dim=2)
             value_states = torch.cat([past_key_value[1], value_states], dim=2)
 
-        # Do not use .data or inplace ops for updating past_key_value
+        # No inplace ops or .data for updating past_key_value
         new_past_key_value = (key_states, value_states)
 
-        key_states = self.repeat_kv(key_states, self.num_key_value_groups)
-        value_states = self.repeat_kv(value_states, self.num_key_value_groups)
+        key_states_expanded = self.repeat_kv(key_states, self.num_key_value_groups)
+        value_states_expanded = self.repeat_kv(value_states, self.num_key_value_groups)
 
-        attn_weights = torch.matmul(query_states, key_states.transpose(2, 3)) / math.sqrt(self.head_dim)
+        attn_weights = torch.matmul(query_states, key_states_expanded.transpose(2, 3)) / math.sqrt(self.head_dim)
 
         if attention_mask is not None:
             attn_weights = attn_weights + attention_mask
 
         attn_weights = nn.functional.softmax(attn_weights, dim=-1, dtype=torch.float32).to(query_states.dtype)
-        attn_output = torch.matmul(attn_weights, value_states)
+        attn_output = torch.matmul(attn_weights, value_states_expanded)
 
         attn_output = attn_output.transpose(1, 2).contiguous()
         attn_output = attn_output.reshape(bsz, q_len, self.hidden_size)
@@ -793,7 +793,7 @@ class NeuronFlorence2Model(NeuronBaseModel):
                 past_key_value = past_key_values[i]
             else:
                 past_key_value = None
-            hidden_states, past_key_value = layer(
+            hidden_states, layer_past_key_value = layer(
                 hidden_states,
                 attention_mask=attention_mask,
                 position_ids=positions,  # 保证下游也用一致的positions
@@ -801,7 +801,7 @@ class NeuronFlorence2Model(NeuronBaseModel):
                 encoder_hidden_states=encoder_hidden_states,
                 **kwargs,
             )
-            presents.append(past_key_value)
+            presents.append(layer_past_key_value)
 
         logits = self.lm_head(hidden_states)
         return logits, presents
