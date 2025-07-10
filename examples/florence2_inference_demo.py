@@ -22,7 +22,11 @@ def run_inference(model_path, image_path, prompt):
     # Initialize NeuronX model and load converted state_dict
     neuron_config = NeuronFlorence2ForCausalLM.get_config_cls().from_pretrained(model_path)
     neuron_model = NeuronFlorence2ForCausalLM(model_path, config=neuron_config)
-    neuron_model.to_neuron() # Compile and load model to Neuron device
+    # Manually compile and load the model to Neuron device
+    import tempfile
+    with tempfile.TemporaryDirectory(suffix="nxd-temp-serial-path") as tmpdirname:
+        neuron_model.compile(tmpdirname)
+        neuron_model.load(tmpdirname)
     
     # Convert HuggingFace state_dict to NeuronX compatible state_dict
     neuron_state_dict = NeuronFlorence2ForCausalLM.convert_hf_to_neuron_state_dict(hf_state_dict, neuron_config)
