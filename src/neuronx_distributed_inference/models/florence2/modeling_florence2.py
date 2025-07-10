@@ -763,19 +763,24 @@ class NeuronFlorence2Model(NeuronBaseModel):
 
         hidden_states = self.embed_tokens(input_ids)
 
-        if (
-            past_key_values is not None and
-            isinstance(past_key_values[0], (list, tuple)) and
-            isinstance(past_key_values[0][0], torch.Tensor) and
-            past_key_values[0][0].dim() >= 3
-        ):
-            past_key_values_length = past_key_values[0][0].shape[2]
+        # 修复点：优先使用传入的 position_ids，只有在其为 None 时才自动生成
+        if position_ids is None:
+            if (
+                past_key_values is not None and
+                isinstance(past_key_values[0], (list, tuple)) and
+                isinstance(past_key_values[0][0], torch.Tensor) and
+                past_key_values[0][0].dim() >= 3
+            ):
+                past_key_values_length = past_key_values[0][0].shape[2]
+            else:
+                past_key_values_length = 0
+            bsz, seq_len = input_ids.shape[:2]
+            positions = torch.arange(
+                past_key_values_length, past_key_values_length + seq_len, dtype=torch.long, device=hidden_states.device
+            ).expand(bsz, -1)
         else:
-            past_key_values_length = 0
-        bsz, seq_len = input_ids.shape[:2]
-        positions = torch.arange(
-            past_key_values_length, past_key_values_length + seq_len, dtype=torch.long, device=hidden_states.device
-        ).expand(bsz, -1)
+            positions = position_ids
+
         # Avoid inplace addition to embedding
         pos_embed = self.embed_positions(positions + 2)
         hidden_states = hidden_states + pos_embed
@@ -790,7 +795,7 @@ class NeuronFlorence2Model(NeuronBaseModel):
             hidden_states, past_key_value = layer(
                 hidden_states,
                 attention_mask=attention_mask,
-                position_ids=position_ids,
+                position_ids=positions,  # 保证下游也用一致的positions
                 past_key_value=past_key_value,
                 encoder_hidden_states=encoder_hidden_states,
                 **kwargs,
@@ -963,4 +968,4 @@ class NeuronFlorence2ForCausalLM(NeuronBaseForCausalLM):
     def get_config_cls(cls):
         return Florence2InferenceConfig
 
-    
+
