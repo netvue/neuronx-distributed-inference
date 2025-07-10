@@ -757,7 +757,7 @@ class NeuronFlorence2Model(NeuronBaseModel):
         seq_ids = torch.arange(0, batch_size, dtype=torch.long)
 
         # Dummy pixel_values (assuming 3 channels, 768x768 image as per Florence-2)
-        pixel_values = torch.randn(batch_size, 3, 768, 768)
+        pixel_values = torch.randn(batch_size, 3, 768, 768, dtype=self.torch_dtype)
 
         # The forward method expects: input_ids, attention_mask, position_ids, seq_ids, pixel_values, *args, **kwargs
         return (
