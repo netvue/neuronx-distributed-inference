@@ -812,78 +812,44 @@ class NeuronFlorence2ForCausalLM(NeuronBaseForCausalLM):
                 print(f"Unhandled key: {name}")
         return neuron_state_dict
 
+    def generate(
+        self,
+        input_ids: torch.LongTensor,
+        pixel_values: torch.FloatTensor,
+        max_new_tokens: int,
+        attention_mask: Optional[torch.Tensor] = None,
+        **kwargs,
+    ):
+        # Initialize past_key_values
+        past_key_values = None
+
+        # Greedy decoding loop
+        for _ in range(max_new_tokens):
+            # Forward pass
+            logits, past_key_values = self(
+                input_ids=input_ids,
+                attention_mask=attention_mask,
+                past_key_values=past_key_values,
+                llava_args=[pixel_values],
+                **kwargs,
+            )
+
+            # Get the next token (greedy approach)
+            next_token_logits = logits[:, -1, :]
+            next_token = torch.argmax(next_token_logits, dim=-1)
+
+            # Append the next token to input_ids
+            input_ids = torch.cat([input_ids, next_token.unsqueeze(-1)], dim=-1)
+
+            # Update attention_mask for the next iteration (if needed)
+            if attention_mask is not None:
+                attention_mask = torch.cat(
+                    [attention_mask, torch.ones_like(next_token.unsqueeze(-1))], dim=-1
+                )
+        return input_ids
+
     @classmethod
     def get_config_cls(cls):
         return Florence2InferenceConfig
 
-    def generate(
-        self,
-        input_ids: torch.LongTensor,
-        pixel_values: torch.FloatTensor,
-        max_new_tokens: int,
-        attention_mask: Optional[torch.Tensor] = None,
-        **kwargs,
-    ):
-        # Initialize past_key_values
-        past_key_values = None
-
-        # Greedy decoding loop
-        for _ in range(max_new_tokens):
-            # Forward pass
-            logits, past_key_values = self.model(
-                input_ids=input_ids,
-                pixel_values=pixel_values,
-                attention_mask=attention_mask,
-                past_key_values=past_key_values,
-                **kwargs,
-            )
-
-            # Get the next token (greedy approach)
-            next_token_logits = logits[:, -1, :]
-            next_token = torch.argmax(next_token_logits, dim=-1)
-
-            # Append the next token to input_ids
-            input_ids = torch.cat([input_ids, next_token.unsqueeze(-1)], dim=-1)
-
-            # Update attention_mask for the next iteration (if needed)
-            if attention_mask is not None:
-                attention_mask = torch.cat(
-                    [attention_mask, torch.ones_like(next_token.unsqueeze(-1))], dim=-1
-                )
-        return input_ids
-
-    def generate(
-        self,
-        input_ids: torch.LongTensor,
-        pixel_values: torch.FloatTensor,
-        max_new_tokens: int,
-        attention_mask: Optional[torch.Tensor] = None,
-        **kwargs,
-    ):
-        # Initialize past_key_values
-        past_key_values = None
-
-        # Greedy decoding loop
-        for _ in range(max_new_tokens):
-            # Forward pass
-            logits, past_key_values = self.model(
-                input_ids=input_ids,
-                pixel_values=pixel_values,
-                attention_mask=attention_mask,
-                past_key_values=past_key_values,
-                **kwargs,
-            )
-
-            # Get the next token (greedy approach)
-            next_token_logits = logits[:, -1, :]
-            next_token = torch.argmax(next_token_logits, dim=-1)
-
-            # Append the next token to input_ids
-            input_ids = torch.cat([input_ids, next_token.unsqueeze(-1)], dim=-1)
-
-            # Update attention_mask for the next iteration (if needed)
-            if attention_mask is not None:
-                attention_mask = torch.cat(
-                    [attention_mask, torch.ones_like(next_token.unsqueeze(-1))], dim=-1
-                )
-        return input_ids
+    
