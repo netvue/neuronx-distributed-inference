@@ -564,6 +564,13 @@ class NeuronFlorence2Attention(NeuronAttentionBase):
 
         self.init_gqa_properties()
 
+    def repeat_kv(self, hidden_states, n_rep):
+        if n_rep == 1:
+            return hidden_states
+        bs, num_heads, slen, head_dim = hidden_states.shape
+        hidden_states = hidden_states[:, :, None, :, :].expand(bs, num_heads, n_rep, slen, head_dim)
+        return hidden_states.reshape(bs, num_heads * n_rep, slen, head_dim)
+
     def forward(
         self,
         hidden_states: torch.Tensor,
