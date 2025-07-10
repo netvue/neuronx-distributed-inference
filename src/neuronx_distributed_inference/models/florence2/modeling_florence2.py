@@ -504,7 +504,11 @@ class NeuronFlorence2VisionEncoder(nn.Module):
         for conv, block in zip(self.convs, self.blocks):
             x, input_size = conv(x, input_size)
             x, input_size = block(x, input_size)
-        
+
+        # Ensure input dtype matches model weights
+        if x.dtype != next(self.parameters()).dtype:
+            x = x.to(dtype=next(self.parameters()).dtype)
+
         x = self.avgpool(x.transpose(1, 2))
         x = torch.flatten(x, 1)
         x = self.norms(x)
