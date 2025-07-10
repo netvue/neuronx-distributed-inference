@@ -753,7 +753,15 @@ class NeuronFlorence2Model(NeuronBaseModel):
         hidden_states = self.embed_tokens(input_ids)
 
 
-        past_key_values_length = past_key_values[0][0].shape[2] if past_key_values is not None else 0
+        if (
+            past_key_values is not None and
+            isinstance(past_key_values[0], (list, tuple)) and
+            isinstance(past_key_values[0][0], torch.Tensor) and
+            past_key_values[0][0].dim() >= 3
+        ):
+            past_key_values_length = past_key_values[0][0].shape[2]
+        else:
+            past_key_values_length = 0
         bsz, seq_len = input_ids.shape[:2]
         positions = torch.arange(
             past_key_values_length, past_key_values_length + seq_len, dtype=torch.long, device=hidden_states.device
