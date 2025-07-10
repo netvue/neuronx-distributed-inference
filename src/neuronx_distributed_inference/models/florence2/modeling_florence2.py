@@ -32,7 +32,7 @@ from neuronx_distributed_inference.models.config import InferenceConfig, NeuronC
 from neuronx_distributed_inference.models.model_base import NeuronBaseForCausalLM, NeuronBaseModel
 from neuronx_distributed_inference.modules.attention.attention_base import NeuronAttentionBase
 from neuronx_distributed_inference.utils.distributed import get_tp_group
-from transformers import Florence2ForConditionalGeneration
+from transformers import AutoModelForCausalLM
 
 
 class Florence2InferenceConfig(InferenceConfig):
@@ -709,7 +709,7 @@ class NeuronFlorence2ForCausalLM(NeuronBaseForCausalLM):
 
     @staticmethod
     def load_hf_model(model_path, **kwargs):
-        return Florence2ForConditionalGeneration.from_pretrained(model_path, **kwargs)
+        return AutoModelForCausalLM.from_pretrained(model_path, trust_remote_code=True, **kwargs)
 
     @staticmethod
     def convert_hf_to_neuron_state_dict(state_dict: dict, config: InferenceConfig) -> dict:
