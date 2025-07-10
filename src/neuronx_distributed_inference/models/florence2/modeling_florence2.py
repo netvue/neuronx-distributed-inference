@@ -798,12 +798,12 @@ class NeuronFlorence2ForCausalLM(NeuronBaseForCausalLM):
                 neuron_state_dict[name.replace("language_model.model.shared.", "embed_tokens.")] = tensor
 
             # Explicitly ignore keys that are not mapped to our NeuronX model
-            elif name.startswith("image_projection.") or 
-                 name.startswith("image_proj_norm.") or 
-                 name.startswith("image_pos_embed.") or 
-                 name.startswith("visual_temporal_embed.") or 
-                 name == "language_model.final_logits_bias" or 
-                 name.startswith("language_model.model.encoder."): # Explicitly ignore the HF text encoder
+            elif (name.startswith("image_projection.") or 
+                  name.startswith("image_proj_norm.") or 
+                  name.startswith("image_pos_embed.") or 
+                  name.startswith("visual_temporal_embed.") or 
+                  name == "language_model.final_logits_bias" or 
+                  name.startswith("language_model.model.encoder.")): # Explicitly ignore the HF text encoder
                 print(f"Ignoring key: {name}")
             else:
                 print(f"Unhandled key: {name}")
