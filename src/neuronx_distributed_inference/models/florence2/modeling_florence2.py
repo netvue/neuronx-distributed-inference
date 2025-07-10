@@ -75,7 +75,7 @@ class Florence2InferenceConfig(InferenceConfig):
         }
         
         # Create an instance of Florence2InferenceConfig
-        instance = cls(**config_dict)
+        instance = cls(neuron_config=cls.get_neuron_config_cls()(), **config_dict)
         instance.add_derived_config()
         return instance
 
