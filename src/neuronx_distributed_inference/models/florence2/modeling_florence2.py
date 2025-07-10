@@ -732,6 +732,9 @@ class NeuronFlorence2Model(NeuronBaseModel):
 class NeuronFlorence2ForCausalLM(NeuronBaseForCausalLM):
     _model_cls = NeuronFlorence2Model
 
+    def __init__(self, model_path, config):
+        super().__init__(model_path, config)
+
     @staticmethod
     def load_hf_model(model_path, **kwargs):
         return AutoModelForCausalLM.from_pretrained(model_path, trust_remote_code=True, **kwargs)
