@@ -589,7 +589,8 @@ class NeuronFlorence2Attention(NeuronAttentionBase):
         key_states = key_states.view(bsz, -1, self.num_key_value_heads_per_partition, self.head_dim).transpose(1, 2)
         value_states = value_states.view(bsz, -1, self.num_key_value_heads_per_partition, self.head_dim).transpose(1, 2)
 
-        if past_key_value is not None:
+        # Only concatenate if past_key_value is present and valid
+        if past_key_value is not None and isinstance(past_key_value, (tuple, list)) and len(past_key_value) == 2:
             key_states = torch.cat([past_key_value[0], key_states], dim=2)
             value_states = torch.cat([past_key_value[1], value_states], dim=2)
 
