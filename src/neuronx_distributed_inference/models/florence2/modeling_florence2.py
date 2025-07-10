@@ -312,7 +312,7 @@ class WindowAttention(nn.Module):
         x = window_reverse(x, B, self.window_size, Hp, Wp)
 
         if pad_r > 0 or pad_b > 0:
-            x = x[:, :H, :W, :].contiguous()
+            x = x[:, :H, :W, :].clone()
 
         x = x.view(B, H * W, C)
 
@@ -475,7 +475,7 @@ class NeuronFlorence2VisionEncoder(nn.Module):
                 ]
             )
             blocks.append(block)
-            depth_offset += depths[i] * 2
+            depth_offset = depth_offset + depths[i] * 2
 
         self.convs = nn.ModuleList(convs)
         self.blocks = nn.ModuleList(blocks)
@@ -568,7 +568,7 @@ class NeuronFlorence2Attention(NeuronAttentionBase):
         if n_rep == 1:
             return hidden_states
         bs, num_heads, slen, head_dim = hidden_states.shape
-        hidden_states = hidden_states[:, :, None, :, :].expand(bs, num_heads, n_rep, slen, head_dim)
+        hidden_states = hidden_states[:, :, None, :, :].expand(bs, num_heads, n_rep, slen, head_dim).clone()
         return hidden_states.reshape(bs, num_heads * n_rep, slen, head_dim)
 
     def forward(
@@ -598,8 +598,8 @@ class NeuronFlorence2Attention(NeuronAttentionBase):
 
         # Only concatenate if past_key_value is present and valid
         if past_key_value is not None and isinstance(past_key_value, (tuple, list)) and len(past_key_value) == 2:
-            key_states = torch.cat([past_key_value[0], key_states], dim=2)
-            value_states = torch.cat([past_key_value[1], value_states], dim=2)
+            key_states = torch.cat([past_key_value[0].clone(), key_states], dim=2)
+            value_states = torch.cat([past_key_value[1].clone(), value_states], dim=2)
 
         # No inplace ops or .data for updating past_key_value
         new_past_key_value = (key_states, value_states)
@@ -956,7 +956,7 @@ class NeuronFlorence2ForCausalLM(NeuronBaseForCausalLM):
             next_token = torch.argmax(next_token_logits, dim=-1)
 
             # Append the next token to input_ids
-            input_ids = torch.cat([input_ids, next_token.unsqueeze(-1)], dim=-1)
+            input_ids = torch.cat([input_ids, next_token.unsqueeze(-1)], dim=-1).clone()
 
             # Update attention_mask for the next iteration (if needed)
             if attention_mask is not None:
