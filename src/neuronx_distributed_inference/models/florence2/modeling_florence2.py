@@ -782,7 +782,7 @@ class NeuronFlorence2Model(NeuronBaseModel):
 
         presents = []
         for i, layer in enumerate(self.decoder_layers):
-            if past_key_values is not None and i < len(past_key_values):
+            if past_key_values is not None and isinstance(past_key_values, (list, tuple)) and i < len(past_key_values):
                 past_key_value = past_key_values[i]
             else:
                 past_key_value = None
