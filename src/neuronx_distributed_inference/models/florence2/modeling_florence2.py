@@ -55,6 +55,31 @@ class Florence2InferenceConfig(InferenceConfig):
         ]
 
     @classmethod
+    def from_pretrained(cls, model_name_or_path, **kwargs):
+        from transformers import AutoConfig
+        hf_config = AutoConfig.from_pretrained(model_name_or_path, **kwargs)
+        
+        # Extract relevant parameters from HuggingFace config
+        config_dict = {
+            "hidden_size": hf_config.language_config.d_model,
+            "num_attention_heads": hf_config.language_config.decoder_attention_heads,
+            "num_hidden_layers": hf_config.language_config.decoder_layers,
+            "num_key_value_heads": hf_config.language_config.decoder_attention_heads, # Florence-2 uses MHA, so num_key_value_heads = num_attention_heads
+            "pad_token_id": hf_config.pad_token_id,
+            "vocab_size": hf_config.language_config.vocab_size,
+            "max_position_embeddings": hf_config.language_config.max_position_embeddings,
+            "rms_norm_eps": hf_config.language_config.layer_norm_eps,
+            "hidden_act": hf_config.language_config.activation_function,
+            "intermediate_size": hf_config.language_config.decoder_ffn_dim,
+            "vision_config": hf_config.vision_config.to_dict(),
+        }
+        
+        # Create an instance of Florence2InferenceConfig
+        instance = cls(**config_dict)
+        instance.add_derived_config()
+        return instance
+
+    @classmethod
     def get_neuron_config_cls(cls) -> type[NeuronConfig]:
         return NeuronConfig
 
