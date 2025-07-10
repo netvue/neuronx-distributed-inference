@@ -744,6 +744,7 @@ class NeuronFlorence2ForCausalLM(NeuronBaseForCausalLM):
 
     def __init__(self, model_path, config):
         super().__init__(model_path, config=config)
+        self.text_config = config.hf_config.text_config
 
     @staticmethod
     def load_hf_model(model_path, **kwargs):
