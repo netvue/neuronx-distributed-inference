@@ -707,25 +707,19 @@ class NeuronFlorence2Model(NeuronBaseModel):
     def forward(
         self,
         input_ids: torch.LongTensor = None,
-        seq_ids: Optional[torch.LongTensor] = None,
         attention_mask: Optional[torch.Tensor] = None,
         position_ids: Optional[torch.LongTensor] = None,
-        past_key_values: Optional[Tuple[torch.Tensor]] = None,
-        inputs_embeds: Optional[torch.FloatTensor] = None,
-        labels: Optional[torch.LongTensor] = None,
-        use_cache: Optional[bool] = None,
-        output_attentions: Optional[bool] = None,
-        output_hidden_states: Optional[bool] = None,
-        medusa_args=None,
-        return_dict: Optional[bool] = None,
-        llava_args: Optional[List] = []
+        seq_ids: Optional[torch.LongTensor] = None,
+        pixel_values: Optional[torch.FloatTensor] = None, # This is the 5th positional argument
+        *args, # Capture remaining positional arguments
+        **kwargs,
     ):
-        # Extract pixel_values from llava_args
-        pixel_values = llava_args[0] if llava_args else None
-
         encoder_hidden_states = self.vision_encoder(pixel_values)
         
         hidden_states = self.embed_tokens(input_ids)
+
+        # Extract past_key_values from kwargs if present
+        past_key_values = kwargs.pop("past_key_values", None)
 
         past_key_values_length = past_key_values[0][0].shape[2] if past_key_values is not None else 0
         bsz, seq_len = input_ids.shape[:2]
@@ -765,21 +759,14 @@ class NeuronFlorence2Model(NeuronBaseModel):
         # Dummy pixel_values (assuming 3 channels, 768x768 image as per Florence-2)
         pixel_values = torch.randn(batch_size, 3, 768, 768)
 
-        # The forward method expects: input_ids, seq_ids, attention_mask, position_ids, past_key_values, inputs_embeds, labels, use_cache, output_attentions, output_hidden_states, medusa_args, return_dict, llava_args
+        # The forward method expects: input_ids, attention_mask, position_ids, seq_ids, pixel_values, *args, **kwargs
         return (
             input_ids,
-            seq_ids,
             attention_mask,
             position_ids,
-            None, # past_key_values
-            None, # inputs_embeds
-            None, # labels
-            None, # use_cache
-            None, # output_attentions
-            None, # output_hidden_states
-            None, # medusa_args
-            None, # return_dict
-            [pixel_values] # llava_args
+            seq_ids,
+            pixel_values, # This is the 5th positional argument
+            # Remaining arguments for forward (past_key_values, inputs_embeds, etc.) can be passed as kwargs
         )
 
 
