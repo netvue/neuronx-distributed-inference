@@ -763,7 +763,6 @@ class NeuronFlorence2Model(NeuronBaseModel):
 
         hidden_states = self.embed_tokens(input_ids)
 
-
         if (
             past_key_values is not None and
             isinstance(past_key_values[0], (list, tuple)) and
@@ -777,7 +776,9 @@ class NeuronFlorence2Model(NeuronBaseModel):
         positions = torch.arange(
             past_key_values_length, past_key_values_length + seq_len, dtype=torch.long, device=hidden_states.device
         ).expand(bsz, -1)
-        hidden_states = hidden_states + self.embed_positions(positions + 2)
+        # Avoid inplace addition to embedding
+        pos_embed = self.embed_positions(positions + 2)
+        hidden_states = hidden_states + pos_embed
         hidden_states = self.layernorm_embedding(hidden_states)
 
         presents = []
