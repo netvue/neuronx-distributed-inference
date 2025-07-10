@@ -601,7 +601,8 @@ class NeuronFlorence2Attention(NeuronAttentionBase):
             key_states = torch.cat([past_key_value[0], key_states], dim=2)
             value_states = torch.cat([past_key_value[1], value_states], dim=2)
 
-        past_key_value = (key_states, value_states)
+        # Do not use .data or inplace ops for updating past_key_value
+        new_past_key_value = (key_states, value_states)
 
         key_states = self.repeat_kv(key_states, self.num_key_value_groups)
         value_states = self.repeat_kv(value_states, self.num_key_value_groups)
@@ -619,7 +620,7 @@ class NeuronFlorence2Attention(NeuronAttentionBase):
 
         attn_output = self.o_proj(attn_output)
 
-        return attn_output, None, past_key_value
+        return attn_output, None, new_past_key_value
 
 
 class NeuronFlorence2MLP(nn.Module):
