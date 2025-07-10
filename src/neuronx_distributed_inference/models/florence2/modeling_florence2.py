@@ -737,7 +737,8 @@ class NeuronFlorence2Model(NeuronBaseModel):
         output_hidden_states: Optional[bool] = None,
         medusa_args=None,
         return_dict: Optional[bool] = None,
-        llava_args: Optional[List] = []  # llava_args remains, but pixel_values is not extracted from it
+        llava_args: Optional[List] = [],  # llava_args remains, but pixel_values is not extracted from it
+        **kwargs
     ):
         # --- DEBUGGING PRINTS START ---
         print(f"DEBUG: Inside NeuronFlorence2Model.forward")
